@@ -273,6 +273,9 @@ struct product_code {
 static struct product_code product_codes[] = {
 		{ .id_value = 0x0007, .product_code = "SCH1633-B01" },
 		{ .id_value = 0x0017, .product_code = "SCH1633-B13" },
+		{ .id_value = 0x0023, .product_code = "SCH16T-K01" },
+		{ .id_value = 0x0021, .product_code = "SCH16T-K10" },
+		{ .id_value = 0x002E, .product_code = "SCH1633-D01" },
 };
 
 enum SCH16XX_SCAN {
