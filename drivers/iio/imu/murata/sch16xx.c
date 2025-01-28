@@ -1307,6 +1307,15 @@ static int sch16xx_probe (struct spi_device *spi)
 		property_string = default_accel_dyn_range;
 	}
 
+	{
+		unsigned int id;
+		ret = sch16xx_read_single(chip, REG_COMP_ID, &id, false);
+		if (ret)
+			goto err;
+		chip->comp_id = id;
+		chip->product_code = find_product_code(id);
+	}
+
 	chip->acc12_range = find_dynamic_range_params(acc12_params, property_string);
 
 	if (chip->acc12_range == NULL) {
@@ -1350,7 +1359,7 @@ static int sch16xx_probe (struct spi_device *spi)
 		chip->rate_filter = find_filter_params(filter_params, "LPF0");
 	}
 	if (chip->rate_filter == NULL) {
-		dev_err(&spi->dev, "Gyroscope filter parameters for not found.");
+		dev_err(&spi->dev, "Gyroscope filter parameters not found.");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -1374,15 +1383,6 @@ static int sch16xx_probe (struct spi_device *spi)
 	}
 
 	chip->vddio_1v8 = of_property_read_bool(spi->dev.of_node, "murata,vddio_1v8");
-
-	{
-		unsigned int id;
-		ret = sch16xx_read_single(chip, REG_COMP_ID, &id, false);
-		if (ret)
-			goto err;
-		chip->comp_id = id;
-		chip->product_code = find_product_code(id);
-	}
 
 	ret = sch16xx_init(iio_dev);
 	if (ret)
