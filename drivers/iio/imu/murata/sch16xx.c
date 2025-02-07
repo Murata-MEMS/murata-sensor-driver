@@ -264,18 +264,67 @@ module_param(override_gyro_dyn_range, charp, 0660);
 #define EOI_CTRL                0x02
 #define SOFTRESET_CTRL          0x0A
 
-// HPC1 product codes vs ID register content.
-struct product_code {
-	int id_value;
-	const char *product_code;
+struct dynamic_range_params {
+	const char *dyn_n;
+	int bit_value;
+	const char *measurement_range;
+	int sensitivity_20bits;
 };
 
-static struct product_code product_codes[] = {
-		{ .id_value = 0x0007, .product_code = "SCH1633-B01" },
-		{ .id_value = 0x0017, .product_code = "SCH1633-B13" },
-		{ .id_value = 0x0023, .product_code = "SCH16T-K01" },
-		{ .id_value = 0x0021, .product_code = "SCH16T-K10" },
-		{ .id_value = 0x002E, .product_code = "SCH1633-D01" },
+// HPC1 ID register content vs product code an sensitivity parameters.
+struct product_type {
+	int id_value;
+	const char *product_code;
+	const struct dynamic_range_params *rate_params;
+	const struct dynamic_range_params *acc12_params;
+};
+
+//default dynamic range parameters
+static const struct dynamic_range_params _rate_params_default[] = {
+		// bits = 0 undefined
+		{ .dyn_n = "DYN1", .bit_value = 1, .measurement_range = "300", .sensitivity_20bits = 1600 },
+		{ .dyn_n = "DYN2", .bit_value = 2, .measurement_range = "300", .sensitivity_20bits = 1600 },
+		{ .dyn_n = "DYN3", .bit_value = 3, .measurement_range = "125", .sensitivity_20bits = 3200 },
+		{ .dyn_n = "DYN4", .bit_value = 4, .measurement_range = "62.5", .sensitivity_20bits = 6400 },
+		{ 0 }
+};
+
+//alternative dynamic range parameters for spesific product codes
+static const struct dynamic_range_params _rate_params_alt1[] = {
+		// bits = 0 undefined
+		{ .dyn_n = "DYN1", .bit_value = 1, .measurement_range = "300", .sensitivity_20bits = 100 },
+		{ .dyn_n = "DYN2", .bit_value = 2, .measurement_range = "300", .sensitivity_20bits = 100 },
+		{ .dyn_n = "DYN3", .bit_value = 3, .measurement_range = "125", .sensitivity_20bits = 200 },
+		{ .dyn_n = "DYN4", .bit_value = 4, .measurement_range = "62.5", .sensitivity_20bits = 400 },
+		{ 0 }
+};
+
+//default dynamic range parameters
+static const struct dynamic_range_params _acc12_params_default[] = {
+		// bits = 0 undefined for ACC12
+		{ .dyn_n = "DYN1", .bit_value = 1, .measurement_range = "80", .sensitivity_20bits = 3200 },
+		{ .dyn_n = "DYN2", .bit_value = 2, .measurement_range = "60", .sensitivity_20bits = 6400 },
+		{ .dyn_n = "DYN3", .bit_value = 3, .measurement_range = "30", .sensitivity_20bits = 12800 },
+		{ .dyn_n = "DYN4", .bit_value = 4, .measurement_range = "15", .sensitivity_20bits = 25600 },
+		{ 0 }
+};
+
+//alternative dynamic range parameters for spesific product codes
+static const struct dynamic_range_params _acc12_params_alt1[] = {
+		// bits = 0 undefined for ACC12
+		{ .dyn_n = "DYN1", .bit_value = 1, .measurement_range = "80", .sensitivity_20bits = 6400 },
+		{ .dyn_n = "DYN2", .bit_value = 2, .measurement_range = "60", .sensitivity_20bits = 6400 },
+		{ .dyn_n = "DYN3", .bit_value = 3, .measurement_range = "30", .sensitivity_20bits = 12800 },
+		{ .dyn_n = "DYN4", .bit_value = 4, .measurement_range = "15", .sensitivity_20bits = 25600 },
+		{ 0 }
+};
+
+static struct product_type product_types[] = {
+		{ .id_value = 0x0007, .product_code = "SCH1633-B01", .rate_params = _rate_params_default, .acc12_params = _acc12_params_default },
+		{ .id_value = 0x0017, .product_code = "SCH1633-B13", .rate_params = _rate_params_default, .acc12_params = _acc12_params_default },
+		{ .id_value = 0x0023, .product_code = "SCH16T-K01", .rate_params = _rate_params_default, .acc12_params = _acc12_params_default },
+		{ .id_value = 0x0021, .product_code = "SCH16T-K10", .rate_params = _rate_params_alt1, .acc12_params = _acc12_params_alt1 },
+		{ .id_value = 0x002E, .product_code = "SCH1633-D01", .rate_params = _rate_params_default, .acc12_params = _acc12_params_default },
 };
 
 enum SCH16XX_SCAN {
@@ -315,56 +364,8 @@ struct sch16xx_dev
 	const struct dynamic_range_params *rate_range;
 	const struct filter_params *acc12_filter;
 	const struct filter_params *rate_filter;
-	const char *product_code;
-	uint16_t comp_id;
 	bool vddio_1v8;
-};
-
-struct dynamic_range_params {
-	const char *dyn_n;
-	int bit_value;
-	const char *measurement_range;
-	int sensitivity_20bits;
-};
-
-//default dynamic range parameters
-static const struct dynamic_range_params rate_params[] = {
-		// bits = 0 undefined
-		{ .dyn_n = "DYN1", .bit_value = 1, .measurement_range = "300", .sensitivity_20bits = 1600 },
-		{ .dyn_n = "DYN2", .bit_value = 2, .measurement_range = "300", .sensitivity_20bits = 1600 },
-		{ .dyn_n = "DYN3", .bit_value = 3, .measurement_range = "125", .sensitivity_20bits = 3200 },
-		{ .dyn_n = "DYN4", .bit_value = 4, .measurement_range = "62.5", .sensitivity_20bits = 6400 },
-		{ 0 }
-};
-
-//alternative dynamic range parameters for spesific product codes
-static const struct dynamic_range_params rate_params_alt1[] = {
-		// bits = 0 undefined
-		{ .dyn_n = "DYN1", .bit_value = 1, .measurement_range = "300", .sensitivity_20bits = 100 },
-		{ .dyn_n = "DYN2", .bit_value = 2, .measurement_range = "300", .sensitivity_20bits = 100 },
-		{ .dyn_n = "DYN3", .bit_value = 3, .measurement_range = "125", .sensitivity_20bits = 200 },
-		{ .dyn_n = "DYN4", .bit_value = 4, .measurement_range = "62.5", .sensitivity_20bits = 400 },
-		{ 0 }
-};
-
-//default dynamic range parameters
-static const struct dynamic_range_params acc12_params[] = {
-		// bits = 0 undefined for ACC12
-		{ .dyn_n = "DYN1", .bit_value = 1, .measurement_range = "80", .sensitivity_20bits = 3200 },
-		{ .dyn_n = "DYN2", .bit_value = 2, .measurement_range = "60", .sensitivity_20bits = 6400 },
-		{ .dyn_n = "DYN3", .bit_value = 3, .measurement_range = "30", .sensitivity_20bits = 12800 },
-		{ .dyn_n = "DYN4", .bit_value = 4, .measurement_range = "15", .sensitivity_20bits = 25600 },
-		{ 0 }
-};
-
-//alternative dynamic range parameters for spesific product codes
-static const struct dynamic_range_params acc12_params_alt1[] = {
-		// bits = 0 undefined for ACC12
-		{ .dyn_n = "DYN1", .bit_value = 1, .measurement_range = "80", .sensitivity_20bits = 6400 },
-		{ .dyn_n = "DYN2", .bit_value = 2, .measurement_range = "60", .sensitivity_20bits = 6400 },
-		{ .dyn_n = "DYN3", .bit_value = 3, .measurement_range = "30", .sensitivity_20bits = 12800 },
-		{ .dyn_n = "DYN4", .bit_value = 4, .measurement_range = "15", .sensitivity_20bits = 25600 },
-		{ 0 }
+	const struct product_type *product_type;
 };
 
 static const struct dynamic_range_params *find_dynamic_range_params(const struct dynamic_range_params *params, const char *dyn_n)
@@ -426,13 +427,13 @@ static const struct filter_params *find_filter_params(const struct filter_params
 	return NULL;
 }
 
-static const char* find_product_code(int id_value)
+static const struct product_type* find_product_type(int id_value)
 {
 	int i = 0;
-	for (i = 0; i < ARRAY_SIZE(product_codes); i++) {
+	for (i = 0; i < ARRAY_SIZE(product_types); i++) {
 
-		if (product_codes[i].id_value == id_value)
-			return product_codes[i].product_code;
+		if (product_types[i].id_value == id_value)
+			return &product_types[i];
 	}
 	return NULL;
 }
@@ -1001,11 +1002,7 @@ static ssize_t product_code_show(struct device *dev, struct device_attribute *at
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sch16xx_dev *chip = iio_priv(indio_dev);
 
-	if (chip->product_code == NULL) {
-		return sysfs_emit(buf, "Unknown (COMP_ID=0x%04x)", chip->comp_id);
-	} else {
-		return sysfs_emit(buf, "%s\n", chip->product_code);
-	}
+	return sysfs_emit(buf, "%s\n", chip->product_type->product_code);
 }
 
 static IIO_DEVICE_ATTR_RO(product_code, 0);
@@ -1035,11 +1032,7 @@ static ssize_t rate_dyn_show(struct device *dev, struct device_attribute *attr, 
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sch16xx_dev *chip = iio_priv(indio_dev);
 
-	if (strcmp(chip->product_code, "SCH16T-K10") == 0) {
-		return dyn_show(buf, PAGE_SIZE, rate_params_alt1, chip->rate_range);
-	} else {	
-		return dyn_show(buf, PAGE_SIZE, rate_params, chip->rate_range);
-	}
+	return dyn_show(buf, PAGE_SIZE, chip->product_type->rate_params, chip->rate_range);	
 }
 
 static ssize_t rate_dyn_store(struct device *dev, struct device_attribute *attr,
@@ -1050,13 +1043,7 @@ static ssize_t rate_dyn_store(struct device *dev, struct device_attribute *attr,
 	struct sch16xx_dev *chip = iio_priv(indio_dev);
 	const struct dynamic_range_params *dyn;
 
-	dev_info(dev, "buf= >%s<", buf);
-
-	if (strcmp(chip->product_code, "SCH16T-K10") == 0) {
-		dyn = find_dynamic_range_params(rate_params_alt1, buf);
-	} else {	
-		dyn = find_dynamic_range_params(rate_params, buf);
-	}	
+	dyn = find_dynamic_range_params(chip->product_type->rate_params, buf);	
 
 	if (dyn == NULL)
 		return -EINVAL;
@@ -1078,7 +1065,7 @@ static ssize_t accel_dyn_show(struct device *dev, struct device_attribute *attr,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sch16xx_dev *chip = iio_priv(indio_dev);
 
-	return dyn_show(buf, PAGE_SIZE, acc12_params, chip->acc12_range);
+	return dyn_show(buf, PAGE_SIZE, chip->product_type->acc12_params, chip->acc12_range);
 }
 
 static ssize_t accel_dyn_store(struct device *dev, struct device_attribute *attr,
@@ -1088,7 +1075,9 @@ static ssize_t accel_dyn_store(struct device *dev, struct device_attribute *attr
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sch16xx_dev *chip = iio_priv(indio_dev);
 
-	const struct dynamic_range_params *dyn = find_dynamic_range_params(acc12_params, buf);
+	const struct dynamic_range_params *dyn;
+	
+	dyn = find_dynamic_range_params(chip->product_type->acc12_params, buf);
 
 	if (dyn == NULL)
 		return -EINVAL;
@@ -1308,6 +1297,13 @@ static int sch16xx_probe (struct spi_device *spi)
 		property_string = default_accel_dyn_range;
 	}
 
+	if (strlen(override_gyro_dyn_range) > 0) {
+		property_string = override_gyro_dyn_range;
+	}
+	else if (of_property_read_string(spi->dev.of_node, "murata,rate_dyn", &property_string) != 0) {
+		property_string = default_gyro_dyn_range;
+	}
+
 	ret = sch16xx_reset(iio_dev);
 	if (ret)
 		return ret;
@@ -1319,11 +1315,16 @@ static int sch16xx_probe (struct spi_device *spi)
 		ret = sch16xx_read_single(chip, REG_COMP_ID, &id, false);
 		if (ret)
 			goto err;
-		chip->comp_id = id;
-		chip->product_code = find_product_code(id);
+		
+		chip->product_type = find_product_type(id);
+
+		if (chip->product_type == NULL) {
+			dev_err(&spi->dev, "Product type not found for COMP_ID 0x%04x, refusing to probe.", id);
+		}
+		return -EINVAL;
 	}
 
-	chip->acc12_range = find_dynamic_range_params(acc12_params, property_string);
+	chip->acc12_range = find_dynamic_range_params(chip->product_type->acc12_params, property_string);
 
 	if (chip->acc12_range == NULL) {
 		dev_err(&spi->dev, "Accelerometer range '%s' not found.", property_string);
@@ -1331,18 +1332,7 @@ static int sch16xx_probe (struct spi_device *spi)
 		goto err;
 	}
 
-	if (strlen(override_gyro_dyn_range) > 0) {
-		property_string = override_gyro_dyn_range;
-	}
-	else if (of_property_read_string(spi->dev.of_node, "murata,rate_dyn", &property_string) != 0) {
-		property_string = default_gyro_dyn_range;
-	}
-
-	if (strcmp(chip->product_code, "SCH16T-K10") == 0) {
-		chip->rate_range = find_dynamic_range_params(rate_params_alt1, property_string);
-	} else {	
-		chip->rate_range = find_dynamic_range_params(rate_params, property_string);
-	}	
+	chip->rate_range = find_dynamic_range_params(chip->product_type->rate_params, property_string);
 
 	if (chip->rate_range == NULL) {
 		dev_err(&spi->dev, "Gyroscope range '%s' not found.", property_string);
