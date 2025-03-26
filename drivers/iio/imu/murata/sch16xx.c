@@ -1198,7 +1198,8 @@ static int sch16xx_update_scan_mode(struct iio_dev *indio_dev, const unsigned lo
 static int sch16xx_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	return sch16xx_reset(indio_dev);
+	sch16xx_reset(indio_dev);
+	return 0;
 }
 
 static int sch16xx_resume(struct device *dev)
