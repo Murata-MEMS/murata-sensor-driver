@@ -1101,7 +1101,7 @@ static irqreturn_t sch16xx_trigger_bottom_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct sch16xx_dev *sch16xx_dev = iio_priv (indio_dev);
-	u32 data[SCH16XX_MAX_TRANSFER_COUNT];
+	u32 data[SCH16XX_MAX_TRANSFER_COUNT] = { 0 };
 
 	ret = spi_sync_transfer(sch16xx_dev->spi, sch16xx_dev->transfer,
 				sch16xx_dev->transfer_size);
@@ -1114,7 +1114,8 @@ static irqreturn_t sch16xx_trigger_bottom_handler(int irq, void *p)
 		dev_err_ratelimited(&sch16xx_dev->spi->dev, "Error in SPI transfer: %d", ret);
 		goto out;
 	}
-	// Check the result frames validity and copy payload to data[]
+	// Check the result frames validity and copy payload to data[].
+	// Read the frames with offset +1 for off-frame protocol.
 	for (i = 0; i < sch16xx_dev->transfer_size - 1; i++) {
 		u64 response, request;
 
@@ -1167,6 +1168,7 @@ static void prepare_transfer(struct sch16xx_dev *chip, int transfer_num, u64 tx,
 static int sch16xx_update_scan_mode(struct iio_dev *indio_dev, const unsigned long *scan_mask)
 {
 	int chan;
+	int prev_scan_index = -1;
 	struct sch16xx_dev *sch16xx_dev = iio_priv(indio_dev);
 
 	sch16xx_dev->transfer_size = 0;
@@ -1175,7 +1177,16 @@ static int sch16xx_update_scan_mode(struct iio_dev *indio_dev, const unsigned lo
 	// Read output channels
 	for (chan = 0; chan < indio_dev->num_channels; chan++) {
 		int scan_index = indio_dev->channels[chan].scan_index;
-		if (test_bit(scan_index, scan_mask)) {
+		if (scan_index <= prev_scan_index) {
+			// Confirm scan_indices are in ascending order. In sch16xx_trigger_bottom_handler
+			// data is then ordered right ready to be pushed in the buffer.
+			dev_err(&sch16xx_dev->spi->dev, "Error updating scan mode, scan index not in ascending order.");
+			return -EINVAL;
+		}
+		prev_scan_index = scan_index;
+		// Create a SPI transfer only if channel and address are valid
+		if (test_bit(scan_index, scan_mask) && indio_dev->channels[chan].channel != -1 &&
+			indio_dev->channels[chan].address > 0) {
 			int address = indio_dev->channels[chan].address;
 			prepare_transfer(sch16xx_dev, sch16xx_dev->transfer_size++,
 				create_read_frame(address, sch16xx_dev->ta), false);
