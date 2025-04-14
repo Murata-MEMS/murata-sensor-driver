@@ -21,6 +21,7 @@
 				reg = <0>;
 				spi-max-frequency = <10000000>;
 				sync-gpios = <&gpio 12 0>;
+				reset-gpios = <&gpio 23 0>;
 			};
 		};
 	};
