@@ -686,7 +686,7 @@ static void sch16xx_reset(struct iio_dev *indio_dev)
 	gpiod_set_value_cansleep(chip->reset_gpio, 1);
 }
 
-static int sch16xx_init(struct iio_dev *indio_dev)
+static int sch16xx_init(struct iio_dev *indio_dev, bool do_reset)
 {
 	unsigned int value;
 	struct sch16xx_dev *chip = iio_priv(indio_dev);
@@ -694,6 +694,12 @@ static int sch16xx_init(struct iio_dev *indio_dev)
 	const struct filter_params *filt;
 	int ret;
 	bool status_failed;
+	int retry;
+
+	if (do_reset) {
+		sch16xx_reset(indio_dev);
+		msleep(32);
+	}
 
 	// Start up sequence
 	//   power on
@@ -711,7 +717,6 @@ static int sch16xx_init(struct iio_dev *indio_dev)
 	//     reset if not OK ->
 	// Done
 
-	int retry;
 	for (retry = 0; retry < 3; retry++) {
 
 		// rate filter
@@ -900,7 +905,7 @@ static int sch16xx_write_raw(struct iio_dev *indio_dev, struct iio_chan_spec con
 	}
 
 	// Reinit the sensor to use the new settings
-	ret = sch16xx_init(indio_dev);
+	ret = sch16xx_init(indio_dev, true);
 	
 	return ret;
 }
@@ -1024,7 +1029,7 @@ static ssize_t rate_dyn_store(struct device *dev, struct device_attribute *attr,
 	chip->rate_range = dyn;
 
 	// Reinit the sensor to use the new settings
-	ret = sch16xx_init(indio_dev);
+	ret = sch16xx_init(indio_dev, true);
 	if (ret < 0)
 		return ret;
 
@@ -1056,7 +1061,7 @@ static ssize_t accel_dyn_store(struct device *dev, struct device_attribute *attr
 	chip->acc12_range = dyn;
 
 	// Reinit the sensor to use the new settings
-	ret = sch16xx_init(indio_dev);
+	ret = sch16xx_init(indio_dev, true);
 	if (ret < 0)
 		return ret;
 
@@ -1216,7 +1221,7 @@ static int sch16xx_suspend(struct device *dev)
 static int sch16xx_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	return sch16xx_init(indio_dev);
+	return sch16xx_init(indio_dev, true);
 }
 #endif
 
@@ -1341,8 +1346,8 @@ static int sch16xx_probe (struct spi_device *spi)
 
 	chip->vddio_1v8 = of_property_read_bool(spi->dev.of_node, "murata,vddio_1v8");
 
+	// Do hard reset before any SPI communication, in case the ASIC is stuck
 	sch16xx_reset(iio_dev);
-	
 	msleep(32);
 
 	{
@@ -1352,9 +1357,12 @@ static int sch16xx_probe (struct spi_device *spi)
 			goto err;
 		chip->comp_id = id;
 		chip->product_code = find_product_code(id);
+
+		sch16xx_read_single(chip, REG_CTRL_MODE, &id, true);
+		dev_dbg(&spi->dev, "mode=%d", id);
 	}
 
-	ret = sch16xx_init(iio_dev);
+	ret = sch16xx_init(iio_dev, false);
 	if (ret)
 		goto err;
 
