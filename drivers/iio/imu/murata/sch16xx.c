@@ -1139,6 +1139,20 @@ static irqreturn_t sch16xx_trigger_bottom_handler(int irq, void *p)
 		}
 
 		data[i] = (u32)((response & DATA_FIELD_MASK) >> DATA_FIELD_SHIFT);
+
+		switch (request) {
+		case REG_RATE_X1:
+		case REG_RATE_Y1:
+		case REG_RATE_Z1:
+		case REG_ACC_X1:
+		case REG_ACC_Y1:
+		case REG_ACC_Z1:
+		case REG_TEMP:
+			data[i] = sign_extend32(data[i], 19);
+			break;
+		default:
+			break;
+		}
 	}
 
 	if (sch16xx_dev->sync_gpio != NULL && (data[sch16xx_dev->active_scan_size] & (S_SYNC_ACTIVE_ACC1 | S_SYNC_ACTIVE_RATE1)) !=
